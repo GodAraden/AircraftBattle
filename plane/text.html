@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+
+<body>
+  <script>
+    // function mapSort(map) {
+    //   for (let k = 0; k < map.size; k++) {
+    //     let max = map.get(k);
+    //     let maxk = k;
+    //     map.forEach((value, key, map) => {
+    //       if (key > k) {
+    //         console.log(key);
+    //         if (value[1] > max[1]);
+    //         max = value;
+    //         maxk = key;
+    //       }
+    //     })
+    //     let temp = [...map.get(k)]; console.log(temp);
+    //     map.get(k)[0] = max[0];
+    //     map.get(k)[1] = max[1];
+    //     map.get(maxk)[0] = temp[0];
+    //     map.get(maxk)[1] = temp[1];
+    //   }
+    // }
+    function mapSort(map) {
+      map.forEach((value, key, map) => {
+        let max = value;
+        let maxk = key;
+        for (let k = key; k < map.size; k++) {
+          if (map.get(k)[1] > max[1]) {
+            max = map.get(k);
+            maxk = k;
+          }
+        }
+        let temp = map.get(key);
+        map.set(key, map.get(maxk));
+        map.set(maxk, temp);
+      })
+    }
+    let map0 = new Map([[0, [123, 0]], [1, [12, 8]], [2, [1, 1]], [3, ['sd', 4]], [4, [123, 999]], [5, [12, 81]], [6, [1, -1]], [7, ['sd', 98]], [8, ['wewr', 10000]]]);
+    map0.forEach((value, key) => {
+      console.log(value);
+    })
+    console.log("");
+    mapSort(map0);
+    console.log("");
+    map0.forEach((value, key) => {
+      console.log(value[1]);
+    })
+  </script>
+</body>
+
+</html>
