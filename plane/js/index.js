@@ -5,6 +5,10 @@ const myCanvas = document.querySelector(".canvas > canvas");
 const ctx = myCanvas.getContext("2d");
 const start = document.querySelector(".aside .start");
 const ranking = document.querySelector(".aside .ranking tbody");
+const bgm = document.querySelector("#bgm");
+const fire_m = document.querySelector("#fire");
+const explode_m = document.querySelector("#explode");
+const gotenemy_m = document.querySelector("#gotEnemy");
 const ranking_list = ranking.children;
 
 const canvasWidth = ctx.canvas.width;
@@ -35,6 +39,8 @@ const planeN = new Image();
 const planeE = new Image();
 const enemy = new Image();
 const bullet = new Image();
+
+
 planeE.src = "image/planeExplode.png";
 planeN.src = "image/planeNormal.png";
 enemy.src = "image/enemyPlane.png";
@@ -59,6 +65,7 @@ class myPlane {
   fireBullet () {
     if (!bulletCooling) {
       bulletQueue.push(new myBullet(this.positonX, this.positonY));
+      fire_m.play();
       bulletCooling = true;
       clearInterval(bulletCool);
       bulletCool = setInterval(() => {
@@ -121,6 +128,7 @@ bgi1.onload = function () {
 
 start.addEventListener("click", () => {
   initGame();
+  bgm.play();
   start.disabled = true;
 })
 
@@ -166,6 +174,7 @@ function gameSet () {
           if (k.positonY >= enemyArr[e].positonY && k.positonY <= enemyArr[e].positonY + planeSize) {
             if (k.positonX + planeSize / 2 >= enemyArr[e].positonX + 10 && k.positonX + planeSize / 2 <= enemyArr[e].positonX + planeSize) {
               score++;
+              gotenemy_m.play();
               reliveEnemy(e);
               bulletQueue.shift();
             }
@@ -189,6 +198,9 @@ function gameSet () {
         if (myPoX >= enemyArr[k].positonX && myPoX <= enemyArr[k].positonX + planeSize) {
           if (myPoY >= enemyArr[k].positonY && myPoY <= enemyArr[k].positonY + planeSize * 3 / 2) {
             drawGame(planeE);
+            explode_m.play();
+            bgm.src = "";
+            bgm.src = "music/game_music.mp3";
             startflag = false;
             const scorestr = score >= 10 ? score >= 100 ? score.toString() : '0' + score : '00' + score;
             let name = start.nextElementSibling.value;
