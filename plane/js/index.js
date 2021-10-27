@@ -5,6 +5,7 @@ const myCanvas = document.querySelector(".canvas > canvas");
 const ctx = myCanvas.getContext("2d");
 const start = document.querySelector(".aside .start");
 const ranking = document.querySelector(".aside .ranking tbody");
+const help = document.querySelector(".help");
 const bgm = document.querySelector("#bgm");
 const fire_m = document.querySelector("#fire");
 const explode_m = document.querySelector("#explode");
@@ -18,18 +19,25 @@ const canvasHeight = ctx.canvas.height;
 const rate = 8;
 const bulletRate = 20;
 const planeSize = 60;
+const bulletSizeX = 12;
+const bulletSizeY = 16;
+const spoilSize = 32;
 let startflag = true;
 let mapIteator = 0;
 let scoreMap = new Map();
 let enemyArr = [];
 let bulletQueue = [];
 let bulletCooling = false;
+let spoilList = [];
 let myplane = null;
 let score = 0;
 let bulletCool = null;
 let pushEnemyArr = null;
 let gamerun = null;
-
+let heart = 0;
+let linear = ctx.createLinearGradient(10, 20, 250, 20);
+linear.addColorStop(0, "#9F0100");
+linear.addColorStop(1, "#FF3603");
 
 // 图片加载部分
 const bgi = new Image();
@@ -39,7 +47,11 @@ const planeN = new Image();
 const planeE = new Image();
 const enemy = new Image();
 const bullet = new Image();
-
+const heart_i = new Image();
+const rate_i = new Image();
+const card1 = new Image();
+const card2 = new Image();
+const enemybullet_i = new Image();
 
 planeE.src = "image/planeExplode.png";
 planeN.src = "image/planeNormal.png";
@@ -48,6 +60,11 @@ bullet.src = "image/bullet.png";
 bgi.src = "image/background.jpg";
 bgi0.src = "image/background0.jpg";
 bgi1.src = "image/background1.jpg";
+heart_i.src = "image/heart.png";
+rate_i.src = "image/rate.png";
+card1.src = "image/card1.png";
+card2.src = "image/card2.png";
+enemybullet_i.src = "image/enemybullet.png";
 
 
 // 类及函数定义部分
@@ -55,6 +72,66 @@ class myBullet {
   constructor(pX, pY) {
     this.positonX = pX;
     this.positonY = pY;
+  }
+}
+class enemyBullet {
+  constructor(pX, pY, classify) {
+    this.positonY = pY + planeSize;
+    this.classify = classify;
+    switch (this.classify) {
+      case 0:
+        // 普通弹
+        this.positonX = pX + planeSize * 3 / 7;
+        this.rateY = 28;
+        break;
+      case 1:
+        // 交叉弹
+        this.positonX0 = pX + planeSize * 3 / 7;
+        this.positonX1 = pX + planeSize * 3 / 7;
+        this.rateY = Math.floor(Math.random() * 5 + 15);
+        this.rateX = this.rateY / 2;
+        break;
+      case 2:
+        // 滞留弹
+        this.positonX0 = pX + planeSize * 3 / 7;
+        this.positonX1 = pX + planeSize * 3 / 7;
+        this.positonX2 = pX + planeSize * 3 / 7;
+        this.rateY = Math.floor(Math.random() * 3 + 13);
+        this.rateX = this.rateY / 3;
+      case 3:
+        // 分叉弹
+        this.positonX0 = pX + planeSize * 3 / 7;
+        this.positonX1 = pX + planeSize * 3 / 7;
+        this.positonX2 = pX + planeSize * 3 / 7;
+        this.rateY = Math.floor(Math.random() * 5 + 10);
+        this.rateX = this.rateY / 4;
+        break;
+    }
+  }
+  bulletMove () {
+    this.positonY += this.rateY;
+    switch (this.classify) {
+      case 0:
+        break;
+      case 1:
+        this.positonX0 -= this.rateX;
+        this.positonX1 += this.rateX;
+        this.rateX--;
+        break;
+      case 2:
+        if (this.rateY === 12) {
+          this.positonY -= this.rateY;
+          this.positonX0 -= this.rateX;
+          this.positonX2 += this.rateX;
+        } else {
+          this.rateY--;
+        }
+        break;
+      case 3:
+        this.positonX0 -= this.rateX;
+        this.positonX2 += this.rateX;
+        break;
+    }
   }
 }
 class myPlane {
@@ -79,13 +156,68 @@ class enemyPlane {
     this.positonX = pX;
     this.positonY = pY;
     this.rate = Math.floor(Math.random() * 3 + 2.4);
+    this.spoils = 0;
     // 敌机速度为3，4的概率大于2大于5
+    this.bulletQueue = [];
+  }
+  fireBullet () {
+    const fireClassify = Math.floor(Math.random() * 4);
+    const fireTime = Math.floor((Math.random() + 2) * 1000);
+    // [0,4) fireClassify 属于 Z
+    let enemyFireBullet = setInterval(() => {
+      if (this.positonY > 0 && this.positonY < canvasHeight - planeSize) {
+        this.bulletQueue.push(new enemyBullet(this.positonX, this.positonY, fireClassify));
+      } else if (this.positonY > canvasHeight - planeSize) {
+        clearInterval(enemyFireBullet);
+      }
+    }, fireTime);
   }
 }
+class Spoils {
+  constructor(pX, pY) {
+    this.positonX = pX;
+    this.positonY = pY;
+    const randomSpoil = Math.random() * 0.2 + 1;
+    if (randomSpoil > 1 && randomSpoil <= 1.1) {
+      this.randomSpoil = 1;
+      // 第一种战利品，加分？
+    } else if (randomSpoil > 1.1 && randomSpoil <= 1.18) {
+      this.randomSpoil = 2;
+      // 第二种战利品，回血
+    } else if (randomSpoil > 1.18 && randomSpoil <= 1.2) {
+      this.randomSpoil = 3;
+      // 第三种战利品，加别的？
+    }
+  }
+  getSpoil () {
+    switch (this.randomSpoil) {
+      case 1:
+        score++;
+        break;
+      case 2:
+        if (heart + 2 <= 16) {
+          heart += 2;
+        } else {
+          heart = 16;
+        }
+        break;
+      case 3:
+        if (rate < 12) {
+          rate++;
+        } else {
+          score += 3;
+        }
+        break;
+    }
+  }
+}
+
 function createEnemy () {
   const pX = Math.floor(Math.random() * (canvasWidth - planeSize + 1));
   const pY = -planeSize;
-  return new enemyPlane(pX, pY);
+  const newEnemy = new enemyPlane(pX, pY);
+  newEnemy.fireBullet();
+  return newEnemy;
 }
 function reliveEnemy (k) {
   enemyArr[k].positonY = NaN;
@@ -101,56 +233,69 @@ function drawGame (plane) {
   ctx.drawImage(plane, myplane.positonX, myplane.positonY, planeSize, planeSize);
   for (const k of enemyArr) {
     ctx.drawImage(enemy, k.positonX, k.positonY, planeSize, planeSize);
+    for (const b of k.bulletQueue) {
+      switch (b.classify) {
+        case 0:
+          ctx.drawImage(enemybullet_i, b.positonX, b.positonY, bulletSizeX, bulletSizeY);
+          break;
+        case 1:
+          ctx.drawImage(enemybullet_i, b.positonX0, b.positonY, bulletSizeX, bulletSizeY);
+          ctx.drawImage(enemybullet_i, b.positonX1, b.positonY, bulletSizeX, bulletSizeY);
+          break;
+        case 2:
+        case 3:
+          ctx.drawImage(enemybullet_i, b.positonX0, b.positonY, bulletSizeX, bulletSizeY);
+          ctx.drawImage(enemybullet_i, b.positonX1, b.positonY, bulletSizeX, bulletSizeY);
+          ctx.drawImage(enemybullet_i, b.positonX2, b.positonY, bulletSizeX, bulletSizeY);
+      }
+    }
   }
   for (const k of bulletQueue) {
-    ctx.drawImage(bullet, k.positonX + planeSize / 2 - 10, k.positonY, 12, 16);
+    ctx.drawImage(bullet, k.positonX + planeSize / 2 - 10, k.positonY, bulletSizeX, bulletSizeY);
   }
+  for (const k of spoilList) {
+    switch (k.randomSpoil) {
+      case 1:
+        ctx.drawImage(card1, k.positonX - spoilSize / 2, k.positonY - spoilSize / 2, spoilSize, spoilSize);
+        break;
+      case 2:
+        ctx.drawImage(heart_i, k.positonX - spoilSize / 2, k.positonY - spoilSize / 2, spoilSize, spoilSize);
+        break;
+      case 3:
+        ctx.drawImage(rate_i, k.positonX - spoilSize / 2, k.positonY - spoilSize / 2, spoilSize, spoilSize);
+    }
+  }
+  ctx.lineWidth = 3;
+  ctx.strokeRect(10, 10, 240, 30);
+  ctx.fillStyle = linear;
+  ctx.fillRect(10, 10, 240, 30);
+  ctx.fillStyle = "#000";
   ctx.font = '30px 微软雅黑';
+  const hover = (16 - heart) / 16;
   const scorestr = score >= 10 ? score >= 100 ? score.toString() : '0' + score : '00' + score;
-  ctx.fillText("score:" + scorestr, canvasWidth - 140, 40);
+  ctx.fillText("分数:" + scorestr, canvasWidth - 140, 35);
+  if (hover <= 1 && hover > 0) {
+    ctx.fillRect(250 - 240 * hover, 10, 240 * hover, 30);
+  } else if (hover > 1) {
+    ctx.fillRect(10, 10, 240, 30);
+  }
+  ctx.fillStyle = "#C6E8FE";
+  ctx.fillText("血量:" + (heart < 0 ? 0 : heart), 75, 37);
 }
 function initGame () {
   startflag = true;
   score = 0;
+  heart = 16;
   enemyArr = null;
   bulletQueue = null;
   enemyArr = [];
   bulletQueue = [];
+  spoilList = [];
   // 应该先将两个数组设为空在进行游戏配置的初始化，因为游戏配置里有需要判断空数组的条件
   myplane = new myPlane();
   gameSet();
   drawGame(planeN);
 }
-
-bgi1.onload = function () {
-  ctx.drawImage(bgi1, 0, 0, canvasWidth, canvasHeight);
-}
-
-start.addEventListener("click", () => {
-  initGame();
-  bgm.play();
-  start.disabled = true;
-})
-
-window.onkeydown = function (e) {
-  if (startflag) {
-    if (e.key === "w" && myplane.positonY > 0) {
-      myplane.positonY -= rate;
-    } else if (e.key === "s" && myplane.positonY < canvasHeight - planeSize) {
-      myplane.positonY += rate;
-    } else if (e.key === "d" && myplane.positonX < canvasWidth - planeSize) {
-      myplane.positonX += rate;
-    } else if (e.key === "a" && myplane.positonX > 0) {
-      myplane.positonX -= rate;
-    } else if (e.key === " ") {
-      myplane.fireBullet();
-    } else if (e.key === "1") {
-      score++;
-    }
-    drawGame(planeN);
-  }
-}
-
 function gameSet () {
   clearInterval(pushEnemyArr);
   clearInterval(bulletCool);
@@ -171,9 +316,14 @@ function gameSet () {
           bulletQueue.shift();
         }
         for (let e = 0; e < enemyArr.length; e++) {
+          // 对于命中敌人的判定
           if (k.positonY >= enemyArr[e].positonY && k.positonY <= enemyArr[e].positonY + planeSize) {
             if (k.positonX + planeSize / 2 >= enemyArr[e].positonX + 10 && k.positonX + planeSize / 2 <= enemyArr[e].positonX + planeSize) {
               score++;
+              const randomSpoil = Math.random();
+              if (randomSpoil > 0.5 && spoilList.length <= 8) {
+                spoilList.push(new Spoils(enemyArr[e].positonX, enemyArr[e].positonY));
+              }
               gotenemy_m.play();
               reliveEnemy(e);
               bulletQueue.shift();
@@ -185,47 +335,120 @@ function gameSet () {
     }
     if (enemyArr.length !== 0) {
       for (let k = 0; k < enemyArr.length; k++) {
-        console.log(enemyArr[k]);
+        // 敌机子弹出界判定，敌机出界判定
         enemyArr[k].positonY += enemyArr[k].rate;
+        for (const b of enemyArr[k].bulletQueue) {
+          b.bulletMove();
+          if (b.positonY > canvasHeight) {
+            enemyArr[k].bulletQueue.shift();
+          }
+        }
         if (enemyArr[k].positonY >= canvasHeight) {
           reliveEnemy(k);
         }
       }
       drawGame(planeN);
       for (let k = 0; k < enemyArr.length; k++) {
+
         const myPoX = myplane.positonX + planeSize / 2;
         const myPoY = myplane.positonY + planeSize / 2;
+        // 判断是否与敌机相撞
         if (myPoX >= enemyArr[k].positonX && myPoX <= enemyArr[k].positonX + planeSize) {
           if (myPoY >= enemyArr[k].positonY && myPoY <= enemyArr[k].positonY + planeSize * 3 / 2) {
-            drawGame(planeE);
+            heart -= 5;
             explode_m.play();
-            bgm.src = "";
-            bgm.src = "music/game_music.mp3";
-            startflag = false;
-            const scorestr = score >= 10 ? score >= 100 ? score.toString() : '0' + score : '00' + score;
-            let name = start.nextElementSibling.value;
-            name = name === "" ? "无名氏" : name;
-            scoreMapAdd(name, scorestr);
-            start.innerHTML = "游戏结束";
-            let tout1 = setTimeout(() => {
-              start.innerHTML = "距离重新开始还有2秒";
-              clearTimeout(tout1);
-            }, 1000);
-            let tout2 = setTimeout(() => {
-              start.innerHTML = "距离重新开始还有1秒";
-              clearTimeout(tout2);
-            }, 2000);
-            let tout3 = setTimeout(() => {
-              start.innerHTML = "开始游戏";
-              start.disabled = false;
-              clearTimeout(tout3);
-            }, 3000);
-            clearInterval(gamerun);
+            reliveEnemy(k);
+          }
+        }
+        // 判断是否被敌机子弹击中
+        for (const b of enemyArr[k].bulletQueue) {
+          switch (b.classify) {
+            case 0:
+              if (judgeHit(b.positonX, b.positonY, myPoX, myPoY, b)) {
+                b.positonX = NaN;
+              }
+              break;
+            case 1:
+              if (judgeHit(b.positonX0, b.positonY, myPoX, myPoY, b)) {
+                b.positonX0 = NaN;
+              }
+              if (judgeHit(b.positonX1, b.positonY, myPoX, myPoY, b)) {
+                b.positonX1 = NaN;
+              }
+              break;
+            case 2:
+            case 3:
+              if (judgeHit(b.positonX0, b.positonY, myPoX, myPoY, b)) {
+                b.positonX0 = NaN;
+              }
+              if (judgeHit(b.positonX1, b.positonY, myPoX, myPoY, b)) {
+                b.positonX1 = NaN;
+              }
+              if (judgeHit(b.positonX2, b.positonY, myPoX, myPoY, b)) {
+                b.positonX2 = NaN;
+              }
+              break;
+          }
+        }
+        // 判断是否拾取到战利品
+        for (let s = 0; s < spoilList.length; s++) {
+          if (spoilList[s].positonY >= myPoY - planeSize / 2 && spoilList[s].positonY <= myPoY + planeSize / 2) {
+            if (spoilList[s].positonX >= myPoX - planeSize / 2 && spoilList[s].positonX <= myPoX + planeSize / 2) {
+              spoilList[s].getSpoil();
+              spoilList.splice(s, 1);
+            }
           }
         }
       }
+      if (heart <= 0) {
+        gameOver();
+      }
     }
   }, 40);
+}
+function judgeHit (bulletX, bulletY, myPoX, myPoY, bullet) {
+  if (bulletY >= myPoY - planeSize / 2 && bulletY <= myPoY + planeSize / 2) {
+    if (bulletX >= myPoX - planeSize / 2 && bulletX <= myPoX + planeSize / 2) {
+      explode_m.play();
+      heart--;
+      console.log(bullet, bulletX, myPoX);
+      return true;
+    }
+  }
+  return false;
+}
+function gameOver () {
+  drawGame(planeE);
+  explode_m.play();
+  bgm.src = "";
+  bgm.src = "music/game_music.mp3";
+  startflag = false;
+  const scorestr = score >= 10 ? score >= 100 ? score.toString() : '0' + score : '00' + score;
+  let name = start.nextElementSibling.value;
+  name = name === "" ? "无名氏" : name;
+  scoreMapAdd(name, scorestr);
+  start.innerHTML = "游戏结束";
+  delayR()
+    .then(value => {
+      start.innerHTML = "距离重新开始还有5秒";
+      return delayR();
+    }).then(value => {
+      start.innerHTML = "距离重新开始还有4秒";
+      return delayR();
+    }).then(value => {
+      start.innerHTML = "距离重新开始还有3秒";
+      return delayR();
+    }).then(value => {
+      start.innerHTML = "距离重新开始还有2秒";
+      return delayR();
+    }).then(value => {
+      start.innerHTML = "距离重新开始还有1秒";
+      return delayR();
+    }).then(value => {
+      start.innerHTML = "开始游戏";
+      start.disabled = false;
+    })
+  clearInterval(gamerun);
 }
 function scoreMapAdd (...data) {
   if (scoreMap.size < ranking_list.length) {
@@ -281,6 +504,48 @@ function mapSort (map) {
     map.set(maxk, temp);
   })
 }
+function delayR () {
+  return new Promise((resolve, reject) => {
+    setTimeout(resolve, 1000);
+  })
+}
+
+bgi1.onload = function () {
+  ctx.drawImage(bgi1, 0, 0, canvasWidth, canvasHeight);
+}
+
+start.addEventListener("click", () => {
+  initGame();
+  bgm.play();
+  start.disabled = true;
+})
+
+window.onkeypress = function (e) {
+  if (startflag && start.disabled === true) {
+    if ((e.key === "w" || e.key === "W") && myplane.positonY > 0) {
+      myplane.positonY -= rate;
+    } else if ((e.key === "s" || e.key === "S") && myplane.positonY < canvasHeight - planeSize) {
+      myplane.positonY += rate;
+    } else if ((e.key === "d" || e.key === "D") && myplane.positonX < canvasWidth - planeSize) {
+      myplane.positonX += rate;
+    } else if ((e.key === "a" || e.key === "A") && myplane.positonX > 0) {
+      myplane.positonX -= rate;
+    } else if (e.key === " ") {
+      myplane.fireBullet();
+    } else if (e.key === "1") {
+      score++;
+    } else if (e.key === "0") {
+      if (heart < 20) {
+        heart = 99999;
+      } else {
+        heart = 1;
+      }
+    }
+    drawGame(planeN);
+  }
+}
+console.log("作弊模式：按1增加分数，按0切换血量为99999或1");
+
 
 // // 测试代码，测试生成敌军飞机可用性及随机性
 // let rarr = [0, 0, 0, 0];
