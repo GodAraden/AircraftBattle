@@ -11,6 +11,7 @@ audio {
   display: none;
 }
 .canvas {
+  position: relative;
   width: 960px;
   height: 540px;
   margin: 21px;
@@ -37,7 +38,7 @@ audio {
   height: 46px;
   margin: 20px 10%;
   line-height: 46px;
-  font-size: 20px;
+  font-size: 24px;
   text-align: center;
 }
 .aside button,

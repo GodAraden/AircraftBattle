@@ -26,8 +26,9 @@ const cardWidth = 100;
 const cardHeight = 140;
 const crack_lr = 270;
 const crack_card = 30;
-const handCard = 6;
 const fontsize = 16;
+const crack_hand = 35;
+const crack_selected = 60;
 let rate = 8;
 let enterCardGame = 0;
 let bulletCoolTime = 500;
@@ -44,13 +45,21 @@ let enemyCard = null;
 let allCard = [];
 let myplane = null;
 let score = 0;
+let enemyCardScore = 0;
+let myCardScore = 0;
 let help_flag = 0;
 let bulletCool = null;
 let pushEnemyArr = null;
 let gamerun = null;
 let heart = 0;
 let gameResult = false;
+let selectIndex = -1;
+let myHandNum = 6;
+let enemyHandNum = 6;
+let myHandOutWidth = 20;
+let enemyHandOutWidth = 20;
 let linear = ctx.createLinearGradient(10, 20, 250, 20);
+let playHand = true;
 linear.addColorStop(0, "#9F0100");
 linear.addColorStop(1, "#FF3603");
 
@@ -254,10 +263,10 @@ function createEnemy () {
   newEnemy.fireBullet();
   return newEnemy;
 }
-function reliveEnemy (k) {
+function reliveEnemy (k, delay = 2000, errTime = 4000) {
   enemyArr[k].positonY = NaN;
   // 我直接给你搞成NaN(￣_￣ )
-  const time = Math.floor(Math.random() * 2000 + 4000);
+  const time = Math.floor(Math.random() * delay + errTime);
   // 随机的复活时间
   setTimeout(() => {
     enemyArr[k] = createEnemy();
@@ -306,6 +315,7 @@ function drawGame (plane) {
   ctx.fillRect(10, 10, 240, 30);
   ctx.fillStyle = "#000";
   ctx.font = '30px 微软雅黑';
+  ctx.textAlign = "left";
   const hover = (16 - heart) / 16;
   const scorestr = score >= 10 ? score >= 100 ? score.toString() : '0' + score : '00' + score;
   ctx.fillText("分数:" + scorestr, canvasWidth - 140, 35);
@@ -318,6 +328,11 @@ function drawGame (plane) {
   ctx.fillText("血量:" + (heart < 0 ? 0 : heart), 75, 37);
 }
 function drawBoard () {
+  myHandOutWidth = cardWidth / (myHandNum === 1 ? 1 : myHandNum - 1);
+  enemyHandOutWidth = cardWidth / (enemyHandNum === 1 ? 1 : enemyHandNum - 1);
+  ctx.textAlign = 'center';
+  ctx.font = "20px 微软雅黑";
+  ctx.fillStyle = "#EBF3FA";
   ctx.drawImage(bgi0, 0, 0, canvasWidth, canvasHeight);
   ctx.strokeStyle = "#BD5313";
   //绘制网格部分
@@ -329,27 +344,65 @@ function drawBoard () {
     ctx.lineTo(crack_lr + crack_card / 2 + i * (crack_card + cardWidth), canvasHeight - crack_card / 2);
     ctx.stroke();
   }
-  // 绘制卡牌，这里要改成依据数据绘制
+  // 绘制牌桌上的卡牌，这里要改成依据数据绘制
   for (let i = 0; i < 3; i++) {
     for (let j = 0; j < 3; j++) {
-      ctx.beginPath();
-      ctx.textAlign = 'center';
-      ctx.font = "20px 微软雅黑";
-      ctx.strokeStyle = "#fff";
-      ctx.fillStyle = "#EBF3FA";
       const vertex_x = crack_lr + crack_card + j * (cardWidth + crack_card);
       const vertex_y = crack_card + i * (cardHeight + crack_card);
+      ctx.beginPath();
+      ctx.strokeStyle = "#fff";
       ctx.strokeRect(vertex_x, vertex_y, cardWidth, cardHeight);
-      if (cardBoard[i][j].camp) {
-        ctx.drawImage(blue_c, vertex_x, vertex_y, cardWidth, cardHeight);
-      } else if (!cardBoard[i][j].camp) {
-        ctx.drawImage(red_c, vertex_x, vertex_y, cardWidth, cardHeight);
+      if (!!cardBoard[i][j]) {
+        if (cardBoard[i][j].camp) {
+          ctx.drawImage(blue_c, vertex_x, vertex_y, cardWidth, cardHeight);
+        } else if (!cardBoard[i][j].camp) {
+          ctx.drawImage(red_c, vertex_x, vertex_y, cardWidth, cardHeight);
+        }
+        ctx.fillText(cardBoard[i][j].top.toString(), vertex_x + cardWidth / 2, vertex_y + fontsize);
+        ctx.fillText(cardBoard[i][j].bottom.toString(), vertex_x + cardWidth / 2, vertex_y + cardHeight);
+        ctx.fillText(cardBoard[i][j].left.toString(), vertex_x + fontsize / 2, vertex_y + cardHeight / 2 + fontsize / 2);
+        ctx.fillText(cardBoard[i][j].right.toString(), vertex_x + cardWidth - fontsize / 2, vertex_y + cardHeight / 2 + fontsize / 2);
       }
-      ctx.fillText(cardBoard[i][j].top.toString(), vertex_x + cardWidth / 2, vertex_y + fontsize);
-      ctx.fillText(cardBoard[i][j].bottom.toString(), vertex_x + cardWidth / 2, vertex_y + cardHeight);
-      ctx.fillText(cardBoard[i][j].left.toString(), vertex_x + fontsize / 2, vertex_y + cardHeight / 2 + fontsize / 2);
-      ctx.fillText(cardBoard[i][j].right.toString(), vertex_x + cardWidth - fontsize / 2, vertex_y + cardHeight / 2 + fontsize / 2);
     }
+  }
+  // 绘制双方的手牌
+  for (let i = 0; i < enemyHandNum; i++) {
+    const vertex_x = crack_hand + i * enemyHandOutWidth;
+    const vertex_y = canvasHeight - cardHeight - crack_hand;
+    ctx.drawImage(card_back, vertex_x, vertex_y, cardWidth, cardHeight);
+  }
+  for (let i = 0; i < myHandNum; i++) {
+    let offset = 0;
+    if (i === selectIndex) {
+      offset = 20;
+    }
+    const vertex_x = canvasWidth - crack_lr + crack_hand + i * myHandOutWidth;
+    const vertex_y = canvasHeight - cardHeight - crack_hand - offset;
+    ctx.strokeRect(vertex_x, vertex_y, cardWidth, cardHeight);
+    ctx.drawImage(blue_c, vertex_x, vertex_y, cardWidth, cardHeight);
+    ctx.fillText(myCard[i].left.toString(), vertex_x + fontsize / 2, vertex_y + cardHeight / 2 + fontsize / 2);
+    ctx.fillText(myCard[i].bottom.toString(), vertex_x + cardWidth / 2, vertex_y + cardHeight);
+    ctx.fillText(myCard[i].right.toString(), vertex_x + cardWidth - fontsize / 2, vertex_y + cardHeight / 2 + fontsize / 2);
+    ctx.fillText(myCard[i].top.toString(), vertex_x + cardWidth / 2, vertex_y + fontsize);
+  }
+  // 绘制备选卡牌与得分区域，这里手动添加了一个块作用域
+  {
+    const vertex_x = canvasWidth - crack_lr + crack_selected;
+    const vertex_y = 2 * crack_selected;
+    const selected_width = cardWidth * 3 / 2;
+    const selected_height = cardHeight * 3 / 2;
+    ctx.strokeRect(vertex_x, vertex_y, selected_width, selected_height);
+    if (selectIndex >= 0) {
+      ctx.drawImage(blue_c, vertex_x, vertex_y, selected_width, selected_height);
+      ctx.fillText(myCard[selectIndex].top.toString(), vertex_x + selected_width / 2, vertex_y + fontsize);
+      ctx.fillText(myCard[selectIndex].bottom.toString(), vertex_x + selected_width / 2, vertex_y + selected_height);
+      ctx.fillText(myCard[selectIndex].left.toString(), vertex_x + fontsize / 2, vertex_y + selected_height / 2 + fontsize / 2);
+      ctx.fillText(myCard[selectIndex].right.toString(), vertex_x + selected_width - fontsize / 2, vertex_y + selected_height / 2 + fontsize / 2);
+    }
+    ctx.strokeRect(crack_selected, vertex_y, selected_width, selected_height);
+    ctx.font = "30px 微软雅黑";
+    ctx.fillText("我方得分：" + myCardScore, vertex_x + selected_width / 2, vertex_y - crack_selected);
+    ctx.fillText("敌方得分：" + enemyCardScore, crack_selected + selected_width / 2, vertex_y - crack_selected);
   }
 }
 function initGame () {
@@ -371,7 +424,11 @@ function initGame () {
 }
 function initCard () {
   // 还是逻辑的问题，先初始化卡组，再分配卡牌
-
+  myHandNum = 6;
+  enemyHandNum = 6;
+  selectIndex = -1;
+  enemyCardScore = 0;
+  myCardScore = 0;
   initAllCard();
   myCard = [];
   enemyCard = [];
@@ -383,7 +440,8 @@ function initCard () {
   for (const k of myCard) {
     k.camp = true;
   }
-  cardBoard = [[myCard[0], enemyCard[1], myCard[1]], [enemyCard[3], myCard[4], myCard[5]], [enemyCard[0], myCard[2], enemyCard[2]]];
+  cardBoard = [[], [], []];
+  playHand = true;
   enterCardGame = 2;
   stopGame();
   startflag = 2;
@@ -521,7 +579,7 @@ function gameSet () {
     if (enterCardGame === 2 && help_flag === 1) {
       enterCardGame = 3;
       if (gameResult) {
-        help.innerHTML = "知道你可以的！你得到了一项增益";
+        help.innerHTML = "知道你可以的！你已经得到了一项增益";
       } else {
         help.innerHTML = "别灰心，继续收集更好的卡牌战胜他吧！";
       }
@@ -542,10 +600,11 @@ function stopGame () {
 function continueGame () {
   startflag = 1;
   gameSet();
-  drawGame(planeN);
-  for (const k of enemyArr) {
-    k.fireBullet();
+  for (const k in enemyArr) {
+    reliveEnemy(k, 1000, 2000);
+    enemyArr[k].bulletQueue = [];
   }
+  drawGame(planeN);
 }
 function judgeHit (bulletX, bulletY, myPoX, myPoY, bullet) {
   if (bulletY >= myPoY - planeSize / 2 && bulletY <= myPoY + planeSize / 2) {
@@ -679,7 +738,7 @@ function initCardGroup (cardGroup) {
   for (let k = 0; k < allCard.length; k++) {
     flagArr[k] = false;
   }
-  for (let k = 0; k < handCard;) {
+  for (let k = 0; k < 6;) {
     const randomNum = Math.floor(Math.random() * allCard.length);
     if (!flagArr[randomNum]) {
       // 这里需要用到一个深拷贝
@@ -693,7 +752,93 @@ function initCardGroup (cardGroup) {
     k++;
   }
 }
-
+function enemyPlayHand () {
+  setTimeout(() => {
+    let i = -1;
+    let j = -1;
+    let hasempty = false;
+    do {
+      hasempty = false;
+      i = Math.floor(Math.random() * 3);
+      j = Math.floor(Math.random() * 3);
+      for (let a = 0; a < 3; a++) {
+        for (let b = 0; b < 3; b++) {
+          if (!cardBoard[a][b]) {
+            hasempty = true;
+          }
+        }
+      }
+    } while (!!cardBoard[i][j] && hasempty);
+    if (hasempty) {
+      cardBoard[i][j] = enemyCard[0];
+      enemyCard.splice(0, 1);
+      enemyHandNum--;
+      enemyCardScore++;
+      compareCard(i, j);
+      playHand = true;
+      setTimeout(() => {
+        drawBoard();
+      }, 300);
+      help.innerHTML = "轮到你了";
+    } else if (!hasempty) {
+      myCardScore += myHandNum;
+      enemyCardScore += enemyHandNum;
+      drawBoard();
+      if (myCardScore > enemyCardScore) {
+        help.innerHTML = "游戏结束，恭喜你获胜！";
+        gameResult = true;
+      } else {
+        help.innerHTML = "游戏结束，很遗憾你失败了...";
+        gameResult = false;
+      }
+      setTimeout(() => {
+        cardBoard = null;
+        continueGame();
+      }, 3000);
+    }
+  }, 1000);
+}
+function compareCard (row, col) {
+  let thisCamp = cardBoard[row][col].camp;
+  if (row - 1 >= 0) {
+    compareDetil(row - 1, col, row, col, thisCamp);
+  }
+  if (row + 1 <= 2) {
+    compareDetil(row + 1, col, row, col, thisCamp);
+  }
+  if (col - 1 >= 0) {
+    compareDetil(row, col - 1, row, col, thisCamp);
+  }
+  if (col + 1 <= 2) {
+    compareDetil(row, col + 1, row, col, thisCamp);
+  }
+}
+function compareDetil (target_row, target_col, row, col, thisCamp) {
+  if (!!cardBoard[target_row][target_col]) {
+    if (thisCamp !== cardBoard[target_row][target_col].camp) {
+      let property1 = 0;
+      let property2 = 0;
+      if (target_row === row - 1) {
+        property1 = cardBoard[row][col].top;
+        property2 = cardBoard[target_row][target_col].bottom;
+      } else if (target_row === row + 1) {
+        property1 = cardBoard[row][col].bottom;
+        property2 = cardBoard[target_row][target_col].top;
+      } else if (target_col === col - 1) {
+        property1 = cardBoard[row][col].left;
+        property2 = cardBoard[target_row][target_col].right;
+      } else if (target_col === col + 1) {
+        property1 = cardBoard[row][col].right;
+        property2 = cardBoard[target_row][target_col].left;
+      }
+      if (property1 > property2) {
+        ctx.drawImage(card_back, crack_lr + (target_col + 1) * crack_card + target_col * cardWidth, (target_row + 1) * crack_card + (target_row) * cardHeight, cardWidth, cardHeight)
+        cardBoard[target_row][target_col].camp = thisCamp;
+        thisCamp ? (enemyCardScore--, myCardScore++) : (enemyCardScore++, myCardScore--);
+      }
+    }
+  }
+}
 bgi1.onload = function () {
   ctx.drawImage(bgi1, 0, 0, canvasWidth, canvasHeight);
 }
@@ -726,14 +871,65 @@ window.onkeypress = function (e) {
       }
     } else if ((e.key === "p" || e.key === "P") && (score % 25 >= 20)) {
       initCard();
-      // setTimeout(() => {
-      //   bulletCoolTime -= 100;
-      //   continueGame();
-      // }, 5000);
     }
     drawGame(planeN);
   }
 }
+myCanvas.addEventListener("click", (e) => {
+  myHandOutWidth = cardWidth / (myHandNum === 1 ? 1 : myHandNum - 1);
+  if (startflag === 2 && start.disabled === true) {
+    const x0 = canvasWidth - crack_lr + crack_hand;
+    const y0 = canvasHeight - crack_hand - cardHeight;
+    if (e.offsetX >= x0 && e.offsetX <= canvasWidth - crack_hand) {
+      if (e.offsetY >= y0 && e.offsetY <= canvasHeight - crack_hand) {
+        const x = e.offsetX - x0;
+        if (myHandNum === 1) {
+          if (x >= 0 && x < cardWidth) {
+            selectIndex = selectIndex === 0 ? -1 : 0;
+          }
+        } else if (myHandNum >= 2) {
+          for (let i = 0; i < myHandNum - 1; i++) {
+            if (x >= i * myHandOutWidth && x < (i + 1) * myHandOutWidth) {
+              selectIndex = selectIndex === i ? -1 : i;
+            }
+          }
+          if (x >= cardWidth && x <= 2 * cardWidth) {
+            selectIndex = selectIndex === myHandNum - 1 ? -1 : myHandNum - 1;
+          }
+        }
+        drawBoard();
+      }
+    }
+  }
+  if (startflag === 2 && start.disabled === true && selectIndex !== -1 && playHand) {
+    const x0 = crack_lr;
+    const y0 = 0;
+    const x = e.offsetX - x0;
+    const y = e.offsetY;
+    for (let j = 0; j < 3; j++) {
+      for (let i = 0; i < 3; i++) {
+        if (x >= (i + 1) * crack_card + i * cardWidth && x <= (i + 1) * (crack_card + cardWidth)) {
+          if (y >= (j + 1) * crack_card + j * cardHeight && y <= (j + 1) * (crack_card + cardHeight)) {
+            if (!cardBoard[j][i]) {
+              cardBoard[j][i] = myCard[selectIndex];
+              compareCard(j, i);
+              myCard.splice(selectIndex, 1);
+              myHandNum--;
+              myCardScore++;
+              selectIndex = -1;
+              playHand = false;
+              help.innerHTML = "当前为敌方回合，请等待对方思考......";
+              enemyPlayHand();
+            }
+          }
+        }
+      }
+    }
+    setTimeout(() => {
+      drawBoard();
+    }, 300);
+  }
+})
 console.log("作弊模式：按1增加分数，按0切换血量为99999或1");
 
 
