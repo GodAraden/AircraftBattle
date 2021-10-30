@@ -32,6 +32,14 @@ audio {
   font-size: 30px;
   text-align: center;
 }
+.aside .title1 {
+  width: 80%;
+  height: 46px;
+  margin: 20px 10%;
+  line-height: 46px;
+  font-size: 20px;
+  text-align: center;
+}
 .aside button,
 .aside input {
   display: block;

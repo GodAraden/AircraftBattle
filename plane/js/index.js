@@ -3,6 +3,7 @@
 // 获取页面元素部分
 const myCanvas = document.querySelector(".canvas > canvas");
 const ctx = myCanvas.getContext("2d");
+const game_title = document.querySelector(".aside .title");
 const start = document.querySelector(".aside .start");
 const ranking = document.querySelector(".aside .ranking tbody");
 const help = document.querySelector(".help");
@@ -25,6 +26,8 @@ const cardWidth = 100;
 const cardHeight = 140;
 const crack_lr = 270;
 const crack_card = 30;
+const handCard = 6;
+const fontsize = 16;
 let rate = 8;
 let enterCardGame = 0;
 let bulletCoolTime = 500;
@@ -35,16 +38,19 @@ let enemyArr = [];
 let bulletQueue = [];
 let bulletCooling = false;
 let spoilList = [];
+let cardBoard = null;
+let myCard = null;
+let enemyCard = null;
+let allCard = [];
 let myplane = null;
 let score = 0;
 let help_flag = 0;
 let bulletCool = null;
 let pushEnemyArr = null;
 let gamerun = null;
-let enemyFireBullet = null;
 let heart = 0;
-let linear = ctx.createLinearGradient(10, 20, 250, 20);
 let gameResult = false;
+let linear = ctx.createLinearGradient(10, 20, 250, 20);
 linear.addColorStop(0, "#9F0100");
 linear.addColorStop(1, "#FF3603");
 
@@ -61,6 +67,8 @@ const rate_i = new Image();
 const card1 = new Image();
 const card_back = new Image();
 const enemybullet_i = new Image();
+const blue_c = new Image();
+const red_c = new Image();
 
 planeE.src = "image/planeExplode.png";
 planeN.src = "image/planeNormal.png";
@@ -74,7 +82,6 @@ rate_i.src = "image/rate.png";
 card1.src = "image/card1.png";
 card_back.src = "image/card_back.jpg";
 enemybullet_i.src = "image/enemybullet.png";
-
 
 // 类及函数定义部分
 class myBullet {
@@ -170,8 +177,9 @@ class enemyPlane {
     this.bulletQueue = [];
   }
   fireBullet () {
+    let enemyFireBullet = null;
     const fireClassify = Math.floor(Math.random() * 4);
-    const fireTime = Math.floor((Math.random() * 2 + 1) * 1000);
+    const fireTime = Math.floor((Math.random() * 1.5 + 1.5) * 1000);
     // [0,4) fireClassify 属于 Z
     clearInterval(enemyFireBullet);
     enemyFireBullet = setInterval(() => {
@@ -221,6 +229,21 @@ class Spoils {
         }
         break;
     }
+  }
+}
+class Card {
+  constructor(top, right, bottom, left, camp) {
+    // this.asum = top + right + left + bottom;
+    this.top = top;
+    this.right = right;
+    this.bottom = bottom;
+    this.left = left;
+    this.camp = camp;
+    this.row = -1;
+    this.col = -1;
+  }
+  switchCamp () {
+    this.camp = !this.camp;
   }
 }
 
@@ -309,7 +332,23 @@ function drawBoard () {
   // 绘制卡牌，这里要改成依据数据绘制
   for (let i = 0; i < 3; i++) {
     for (let j = 0; j < 3; j++) {
-      ctx.drawImage(card_back, crack_lr + crack_card + j * (cardWidth + crack_card), crack_card + i * (cardHeight + crack_card), cardWidth, cardHeight);
+      ctx.beginPath();
+      ctx.textAlign = 'center';
+      ctx.font = "20px 微软雅黑";
+      ctx.strokeStyle = "#fff";
+      ctx.fillStyle = "#EBF3FA";
+      const vertex_x = crack_lr + crack_card + j * (cardWidth + crack_card);
+      const vertex_y = crack_card + i * (cardHeight + crack_card);
+      ctx.strokeRect(vertex_x, vertex_y, cardWidth, cardHeight);
+      if (cardBoard[i][j].camp) {
+        ctx.drawImage(blue_c, vertex_x, vertex_y, cardWidth, cardHeight);
+      } else if (!cardBoard[i][j].camp) {
+        ctx.drawImage(red_c, vertex_x, vertex_y, cardWidth, cardHeight);
+      }
+      ctx.fillText(cardBoard[i][j].top.toString(), vertex_x + cardWidth / 2, vertex_y + fontsize);
+      ctx.fillText(cardBoard[i][j].bottom.toString(), vertex_x + cardWidth / 2, vertex_y + cardHeight);
+      ctx.fillText(cardBoard[i][j].left.toString(), vertex_x + fontsize / 2, vertex_y + cardHeight / 2 + fontsize / 2);
+      ctx.fillText(cardBoard[i][j].right.toString(), vertex_x + cardWidth - fontsize / 2, vertex_y + cardHeight / 2 + fontsize / 2);
     }
   }
 }
@@ -324,9 +363,41 @@ function initGame () {
   spoilList = [];
   // 应该先将两个数组设为空在进行游戏配置的初始化，因为游戏配置里有需要判断空数组的条件
   myplane = new myPlane();
+  game_title.innerHTML = "飞机大战";
+  game_title.className = "title";
   help.innerHTML = "躲避子弹，击败敌机，获取高分";
   gameSet();
   drawGame(planeN);
+}
+function initCard () {
+  // 还是逻辑的问题，先初始化卡组，再分配卡牌
+
+  initAllCard();
+  myCard = [];
+  enemyCard = [];
+  initCardGroup(myCard);
+  initCardGroup(enemyCard);
+  for (const k of enemyCard) {
+    k.camp = false;
+  }
+  for (const k of myCard) {
+    k.camp = true;
+  }
+  cardBoard = [[myCard[0], enemyCard[1], myCard[1]], [enemyCard[3], myCard[4], myCard[5]], [enemyCard[0], myCard[2], enemyCard[2]]];
+  enterCardGame = 2;
+  stopGame();
+  startflag = 2;
+  blue_c.src = "image/blueCard.png";
+  red_c.src = "image/redCard.png";
+  red_c.onload = () => {
+    setTimeout(() => {
+      drawBoard();
+      game_title.innerHTML = "Double Twin";
+      game_title.className = "title1";
+      help.innerHTML = "欢迎进入Double Twin！放置卡牌，与敌方卡牌拼点并赢取它，获取高分并取得胜利";
+    }, 50);
+  }
+  // console.log(allCard);
 }
 function gameSet () {
   stopGame();
@@ -353,7 +424,6 @@ function gameSet () {
               if (enterCardGame === 0) {
                 if (score % 25 >= 20) {
                   help.innerHTML = "您已达到足够的分数，按p键进入卡牌游戏环节";
-                  console.log(111);
                   help_flag = 1;
                 } else if (help_flag === 1 && score % 25 < 20) {
                   help.innerHTML = "抱歉您错过了进入卡牌游戏的时间";
@@ -579,6 +649,50 @@ function delayR () {
     setTimeout(resolve, 1000);
   })
 }
+function initAllCard () {
+  allCard.push(new Card(1, 8, 6, 9));
+  allCard.push(new Card(7, 7, 3, 5));
+  allCard.push(new Card(5, 9, 9, 3));
+  allCard.push(new Card(9, 7, 9, 1));
+  allCard.push(new Card(3, 5, 4, 5));
+  allCard.push(new Card(6, 2, 2, 2));
+  allCard.push(new Card(5, 4, 8, 2));
+  allCard.push(new Card(2, 6, 6, 6));
+  allCard.push(new Card(2, 5, 3, 9));
+  allCard.push(new Card(6, 6, 5, 4));
+  allCard.push(new Card(6, 3, 4, 9));
+  allCard.push(new Card(6, 4, 11, 8));
+  allCard.sort((card_a, card_b) => {
+    let sum_a = 0;
+    let sum_b = 0;
+    for (const k in card_a) {
+      if (typeof card_a[k] === "number" && typeof card_b[k] === "number") {
+        sum_a += card_a[k];
+        sum_b += card_b[k];
+      }
+    }
+    return sum_a - sum_b;
+  });
+}
+function initCardGroup (cardGroup) {
+  let flagArr = [];
+  for (let k = 0; k < allCard.length; k++) {
+    flagArr[k] = false;
+  }
+  for (let k = 0; k < handCard;) {
+    const randomNum = Math.floor(Math.random() * allCard.length);
+    if (!flagArr[randomNum]) {
+      // 这里需要用到一个深拷贝
+      let temp = new Card();
+      Object.assign(temp, allCard[randomNum]);
+      cardGroup.push(temp);
+    } else {
+      continue;
+    }
+    flagArr[randomNum] = true;
+    k++;
+  }
+}
 
 bgi1.onload = function () {
   ctx.drawImage(bgi1, 0, 0, canvasWidth, canvasHeight);
@@ -611,17 +725,11 @@ window.onkeypress = function (e) {
         heart = 1;
       }
     } else if ((e.key === "p" || e.key === "P") && (score % 25 >= 20)) {
-      enterCardGame = 2;
-      stopGame();
-      startflag = 2;
-      setTimeout(() => {
-        drawBoard();
-        help.innerHTML = "欢迎进入Double Twin！放置卡牌，与敌方卡牌拼点并赢取它，获取高分并取得胜利";
-      }, 50);
-      setTimeout(() => {
-        bulletCoolTime -= 100;
-        continueGame();
-      }, 5000);
+      initCard();
+      // setTimeout(() => {
+      //   bulletCoolTime -= 100;
+      //   continueGame();
+      // }, 5000);
     }
     drawGame(planeN);
   }
