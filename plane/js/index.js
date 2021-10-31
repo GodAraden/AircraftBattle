@@ -21,6 +21,7 @@ const bulletRate = 20;
 const bulletRateX1 = 3;
 const bulletRateX2 = 6;
 const planeSize = 60;
+const bossSize = 180;
 const bulletSizeX = 12;
 const bulletSizeY = 16;
 const spoilSize = 32;
@@ -66,6 +67,10 @@ let myHandOutWidth = 20;
 let enemyHandOutWidth = 20;
 let linear = ctx.createLinearGradient(10, 20, 250, 20);
 let playHand = true;
+let boss = null;
+let fightBoss = false;
+let bossMove = null;
+let bossBulletClassify = 1;
 linear.addColorStop(0, "#9F0100");
 linear.addColorStop(1, "#FF3603");
 
@@ -74,8 +79,9 @@ const bgi = new Image();
 const bgi0 = new Image();
 const bgi1 = new Image();
 const planeN = new Image();
-const planeE = new Image();
+const explode = new Image();
 const enemy = new Image();
+const enemy2 = new Image();
 const bullet = new Image();
 const heart_i = new Image();
 const rate_i = new Image();
@@ -83,10 +89,12 @@ const card_back = new Image();
 const enemybullet_i = new Image();
 const blue_c = new Image();
 const red_c = new Image();
+const boss_i = new Image();
 
-planeE.src = "image/planeExplode.png";
+explode.src = "image/explode.png";
 planeN.src = "image/planeNormal.png";
 enemy.src = "image/enemyPlane.png";
+enemy2.src = "image/enemyPlane2.png";
 bullet.src = "image/bullet.png";
 bgi.src = "image/background.jpg";
 bgi0.src = "image/background0.jpg";
@@ -95,6 +103,7 @@ heart_i.src = "image/heart.png";
 rate_i.src = "image/rate.png";
 card_back.src = "image/card_back.jpg";
 enemybullet_i.src = "image/enemybullet.png";
+boss_i.src = "image/boss.png";
 
 // 类及函数定义部分
 class myBullet {
@@ -187,6 +196,79 @@ class enemyBullet {
     }
   }
 }
+class bossBullet {
+  constructor(pX, pY, classify) {
+    this.positonY = pY + planeSize;
+    this.classify = classify;
+    switch (this.classify) {
+      case 1:
+        // 分叉弹
+        this.positonX0 = pX + planeSize * 3 / 7;
+        this.positonX1 = pX + planeSize * 3 / 7;
+        this.positonX2 = pX + planeSize * 3 / 7;
+        this.positonX3 = pX + planeSize * 3 / 7;
+        this.positonX4 = pX + planeSize * 3 / 7;
+        this.rateY = Math.floor(Math.random() * 10 + 5);
+        this.rateX0 = this.rateY;
+        this.rateX1 = this.rateY * 3 / 2;
+        break;
+      case 2:
+        // 交叉弹
+        this.positonX0 = pX + planeSize * 3 / 7;
+        this.positonX1 = pX + planeSize * 3 / 7;
+        this.positonX2 = pX + planeSize * 3 / 7;
+        this.positonX3 = pX + planeSize * 3 / 7;
+        this.positonX4 = pX + planeSize * 3 / 7;
+        this.rateY = Math.floor(Math.random() * 5 + 5);
+        this.rateX0 = this.rateY / 2;
+        this.rateX1 = this.rateX0 + 5;
+        break;
+      case 3:
+        this.positonX0 = pX + planeSize * 3 / 7;
+        this.positonX1 = pX + planeSize * 3 / 7;
+        this.positonX2 = pX + planeSize * 3 / 7;
+        this.positonX3 = pX + planeSize * 3 / 7;
+        this.positonX4 = pX + planeSize * 3 / 7;
+        this.positonX5 = pX + planeSize * 3 / 7;
+        this.positonX6 = pX + planeSize * 3 / 7;
+        this.rateY = Math.floor(Math.random() * 5 + 10);
+        this.rateX1 = 1.5;
+        this.rateX2 = 3;
+        this.rateX3 = 4.5;
+        break;
+    }
+  }
+  bulletMove () {
+    this.positonY += this.rateY;
+    switch (this.classify) {
+      case 1:
+        this.positonX0 -= this.rateX0;
+        this.positonX1 += this.rateX0;
+        this.positonX2 -= this.rateX1;
+        this.positonX3 -= this.rateX1;
+        this.rateX0--;
+        this.rateX1--;
+        break;
+      case 2:
+        this.positonX1 -= this.rateX;
+        this.positonX2 += this.rateX;
+        this.positonX3 -= this.rateX1;
+        this.positonX4 += this.rateX1;
+        this.rateX0 -= Math.sqrt(this.rateX0 + this.rateY);
+        this.rateX1 += Math.sqrt(this.rateX1 + this.rateY);
+        this.rateY += 1;
+        break;
+      case 3:
+        this.positonX1 -= this.rateX1;
+        this.positonX3 -= this.rateX2;
+        this.positonX5 -= this.rateX3;
+        this.positonX2 += this.rateX1;
+        this.positonX4 += this.rateX2;
+        this.positonX6 += this.rateX3;
+        break;
+    }
+  }
+}
 class myPlane {
   constructor() {
     this.positonX = canvasWidth / 2 - planeSize / 2;
@@ -194,7 +276,7 @@ class myPlane {
   }
   fireBullet () {
     if (!bulletCooling) {
-      bulletQueue.push(new myBullet(this.positonX, this.positonY, bulletflag));
+      bulletQueue.push(new myBullet(this.positonX + 5, this.positonY, bulletflag));
       fire_m.play();
       bulletCooling = true;
       clearInterval(bulletCool);
@@ -209,6 +291,7 @@ class enemyPlane {
     this.positonX = pX;
     this.positonY = pY;
     this.rate = Math.floor(Math.random() * 3 + 2.4);
+    this.randomNum = Math.floor(Math.random() * 2);
     this.spoils = 0;
     // 敌机速度为3，4的概率大于2大于5
     this.bulletQueue = [];
@@ -244,11 +327,11 @@ class Spoils {
   getSpoil () {
     switch (this.randomSpoil) {
       case 1:
-        if (ex_pack.length <= 8) {
-          const top = Math.floor(Math.random() * 8 + 5);
-          const right = Math.floor(Math.random() * 8 + 5);
-          const bottom = Math.floor(Math.random() * 8 + 5);
-          const left = Math.floor(Math.random() * 8 + 5);
+        if (ex_pack.length <= allCard.length + 8) {
+          const top = Math.floor(Math.random() * 6 + 6);
+          const right = Math.floor(Math.random() * 6 + 6);
+          const bottom = Math.floor(Math.random() * 6 + 5);
+          const left = Math.floor(Math.random() * 6 + 5);
           ex_pack.push(new Card(top, right, bottom, left));
           help.innerHTML = "卡牌：" + top + "," + right + "," + bottom + "," + left + "已经加入您的卡组";
           setTimeout(() => {
@@ -261,6 +344,7 @@ class Spoils {
             help.innerHTML = "躲避子弹，击败敌机，获取高分";
           }, 1200);
         }
+        console.log(ex_pack);
         break;
       case 2:
         if (heart + 2 <= 16) {
@@ -283,7 +367,7 @@ class Spoils {
             help.innerHTML = "躲避子弹，击败敌机，获取高分";
           }, 1200);
         } else {
-          if (ex_pack.length <= 12) {
+          if (ex_pack.length <= allCard.length + 12) {
             const top = Math.floor(Math.random() * 5 + 8);
             const right = Math.floor(Math.random() * 5 + 8);
             const bottom = Math.floor(Math.random() * 5 + 8);
@@ -301,6 +385,7 @@ class Spoils {
               help.innerHTML = "躲避子弹，击败敌机，获取高分";
             }, 1200);
           }
+          console.log(ex_pack);
         }
         break;
     }
@@ -321,6 +406,46 @@ class Card {
     this.camp = !this.camp;
   }
 }
+class Boss {
+  constructor() {
+    this.positonX = canvasWidth / 2 - bossSize / 2;
+    this.positonY = 25;
+    this.heart = 50;
+    this.bulletQueue = [];
+    this.fireClassify = -1;
+  }
+  move () {
+    const direct = Math.floor(Math.random() * 2);
+    let bossrate = Math.floor(Math.random() * 6 + 1);
+    bossrate = direct === 0 ? -bossrate : bossrate;
+    let doMove = setInterval(() => {
+      if (this.positonX + bossrate > 0 && this.positonX + bossrate < canvasWidth - bossSize) {
+        this.positonX += bossrate;
+      }
+    }, 20);
+    delayR(1000).then(() => {
+      clearInterval(doMove);
+    })
+  }
+  fireBullet () {
+    let that = this;
+    let enemyFireBullet = null;
+    clearInterval(enemyFireBullet);
+    enemyFireBullet = setInterval(() => {
+      if (that.positonY > 0 && that.positonY < canvasHeight - planeSize) {
+        that.bulletQueue.push(new bossBullet(that.positonX + bossSize / 3, that.positonY, bossBulletClassify));
+        delayR()
+          .then(value => {
+            that.bulletQueue.push(new bossBullet(that.positonX + bossSize / 3, that.positonY, bossBulletClassify));
+            return delayR(300);
+          }).then(value => {
+            that.bulletQueue.push(new bossBullet(that.positonX + bossSize / 3, that.positonY, bossBulletClassify));
+            return delayR(300);
+          })
+      }
+    }, 3000);
+  }
+}
 
 function createEnemy () {
   const pX = Math.floor(Math.random() * (canvasWidth - planeSize + 1));
@@ -338,11 +463,18 @@ function reliveEnemy (k, delay = 2000, errTime = 4000) {
     enemyArr[k] = createEnemy();
   }, time);
 }
-function drawGame (plane) {
+function drawGame (planeExplode = false) {
   ctx.drawImage(bgi, 0, 0, canvasWidth, canvasHeight);
-  ctx.drawImage(plane, myplane.positonX, myplane.positonY, planeSize, planeSize);
+  ctx.drawImage(planeN, myplane.positonX, myplane.positonY, planeSize, planeSize);
+  if (planeExplode) {
+    ctx.drawImage(explode, myplane.positonX + 10, myplane.positonY + 10, planeSize - 5, planeSize - 5);
+  }
   for (const k of enemyArr) {
-    ctx.drawImage(enemy, k.positonX, k.positonY, planeSize, planeSize);
+    if (k.randomNum === 0) {
+      ctx.drawImage(enemy, k.positonX, k.positonY, planeSize * 7 / 6, planeSize * 7 / 6);
+    } else {
+      ctx.drawImage(enemy2, k.positonX, k.positonY, planeSize * 7 / 6, planeSize * 7 / 6);
+    }
     for (const b of k.bulletQueue) {
       switch (b.classify) {
         case 0:
@@ -358,6 +490,25 @@ function drawGame (plane) {
           ctx.drawImage(enemybullet_i, b.positonX0, b.positonY, bulletSizeX, bulletSizeY);
           ctx.drawImage(enemybullet_i, b.positonX1, b.positonY, bulletSizeX, bulletSizeY);
           ctx.drawImage(enemybullet_i, b.positonX2, b.positonY, bulletSizeX, bulletSizeY);
+          break;
+      }
+    }
+  }
+  if (!!boss) {
+    ctx.drawImage(boss_i, boss.positonX, boss.positonY, bossSize, bossSize / 2);
+    for (const b of boss.bulletQueue) {
+      switch (b.classify) {
+        case 3:
+          ctx.drawImage(enemybullet_i, b.positonX6, b.positonY, bulletSizeX, bulletSizeY);
+          ctx.drawImage(enemybullet_i, b.positonX5, b.positonY, bulletSizeX, bulletSizeY);
+        case 2:
+        case 1:
+          ctx.drawImage(enemybullet_i, b.positonX4, b.positonY, bulletSizeX, bulletSizeY);
+          ctx.drawImage(enemybullet_i, b.positonX3, b.positonY, bulletSizeX, bulletSizeY);
+          ctx.drawImage(enemybullet_i, b.positonX2, b.positonY, bulletSizeX, bulletSizeY);
+          ctx.drawImage(enemybullet_i, b.positonX1, b.positonY, bulletSizeX, bulletSizeY);
+          ctx.drawImage(enemybullet_i, b.positonX0, b.positonY, bulletSizeX, bulletSizeY);
+          break;
       }
     }
   }
@@ -482,10 +633,13 @@ function drawBoard () {
   }
 }
 function initGame () {
+  initAllCard();
+  Object.assign(ex_pack, allCard);
   keyGroup = {};
   cardSpoil = [function () { bulletflag++; }, function () { bulletCoolTime /= 2 }, function () { bulletflag++; }];
   help_flag = 0;
   startflag = 1;
+  boss = null;
   bulletflag = 0;
   score = 0;
   heart = 16;
@@ -503,7 +657,7 @@ function initGame () {
   game_title.className = "title";
   help.innerHTML = "躲避子弹，击败敌机，获取高分";
   gameSet();
-  drawGame(planeN);
+  drawGame();
 }
 function initCard () {
   // 还是逻辑的问题，先初始化卡组，再分配卡牌
@@ -512,8 +666,6 @@ function initCard () {
   selectIndex = -1;
   enemyCardScore = 0;
   myCardScore = 0;
-  initAllCard();
-  Object.assign(ex_pack, allCard);
   myCard = [];
   enemyCard = [];
   initCardGroup(myCard, ex_pack);
@@ -566,7 +718,7 @@ function gameSet () {
           myplane.fireBullet();
         }
       }
-      drawGame(planeN);
+      drawGame();
     }
     if (bulletQueue.length !== 0) {
       for (const k of bulletQueue) {
@@ -590,26 +742,36 @@ function gameSet () {
         for (let e = 0; e < enemyArr.length; e++) {
           if (judgeGotEnemy(k.positonX, k.positonY, enemyArr[e], e)) {
             k.positonY = NaN;
+          } else if (!!boss && judgeGotBoss(k.positonX, k.positonY)) {
+            k.positonY = NaN;
           }
           if (bulletflag >= 1) {
             if (judgeGotEnemy(k.positonX1, k.positonY1, enemyArr[e], e)) {
               k.positonY1 = NaN;
+            } else if (!!boss && judgeGotBoss(k.positonX1, k.positonY1)) {
+              k.positonY1 = NaN;
             }
             if (judgeGotEnemy(k.positonX2, k.positonY2, enemyArr[e], e)) {
+              k.positonY2 = NaN;
+            } else if (!!boss && judgeGotBoss(k.positonX2, k.positonY2)) {
               k.positonY2 = NaN;
             }
             if (bulletflag >= 2) {
               if (judgeGotEnemy(k.positonX3, k.positonY3, enemyArr[e], e)) {
                 k.positonY3 = NaN;
+              } else if (!!boss && judgeGotBoss(k.positonX3, k.positonY3)) {
+                k.positonY3 = NaN;
               }
               if (judgeGotEnemy(k.positonX4, k.positonY4, enemyArr[e], e)) {
+                k.positonY4 = NaN;
+              } else if (!!boss && judgeGotBoss(k.positonX4, k.positonY4)) {
                 k.positonY4 = NaN;
               }
             }
           }
         }
       }
-      drawGame(planeN);
+      drawGame();
     }
     if (enemyArr.length !== 0) {
       for (let k = 0; k < enemyArr.length; k++) {
@@ -625,9 +787,8 @@ function gameSet () {
           reliveEnemy(k);
         }
       }
-      drawGame(planeN);
+      drawGame();
       for (let k = 0; k < enemyArr.length; k++) {
-
         const myPoX = myplane.positonX + planeSize / 2;
         const myPoY = myplane.positonY + planeSize / 2;
         // 判断是否与敌机相撞
@@ -683,6 +844,43 @@ function gameSet () {
         gameOver();
       }
     }
+    if (!!boss && fightBoss) {
+      const myPoX = myplane.positonX + planeSize / 2;
+      const myPoY = myplane.positonY + planeSize / 2;
+      for (const b of boss.bulletQueue) {
+        b.bulletMove();
+        if (b.positonY > canvasHeight) {
+          boss.bulletQueue.shift();
+        }
+        switch (b.classify) {
+          case 3:
+            if (judgeHit(b.positonX5, b.positonY, myPoX, myPoY, b)) {
+              b.positonX5 = NaN;
+            }
+            if (judgeHit(b.positonX6, b.positonY, myPoX, myPoY, b)) {
+              b.positonX6 = NaN;
+            }
+          case 2:
+          case 1:
+            if (judgeHit(b.positonX0, b.positonY, myPoX, myPoY, b)) {
+              b.positonX0 = NaN;
+            }
+            if (judgeHit(b.positonX1, b.positonY, myPoX, myPoY, b)) {
+              b.positonX1 = NaN;
+            }
+            if (judgeHit(b.positonX2, b.positonY, myPoX, myPoY, b)) {
+              b.positonX2 = NaN;
+            }
+            if (judgeHit(b.positonX3, b.positonY, myPoX, myPoY, b)) {
+              b.positonX3 = NaN;
+            }
+            if (judgeHit(b.positonX4, b.positonY, myPoX, myPoY, b)) {
+              b.positonX4 = NaN;
+            }
+            break;
+        }
+      }
+    }
     if (enterCardGame === 2 && help_flag === 1) {
       enterCardGame = 3;
       game_title.innerHTML = "飞机大战";
@@ -724,7 +922,7 @@ function continueGame () {
     reliveEnemy(k, 2000, 2000);
     enemyArr[k].bulletQueue = [];
   }
-  drawGame(planeN);
+  drawGame();
 }
 function judgeHit (bulletX, bulletY, myPoX, myPoY, bullet) {
   if (bulletY >= myPoY - planeSize / 2 && bulletY <= myPoY + planeSize / 2) {
@@ -751,6 +949,22 @@ function judgeGotEnemy (poX, poY, enemyPlane, e) {
   }
   return false;
 }
+function judgeGotBoss (poX, poY) {
+  if (poY >= boss.positonY && poY <= boss.positonY + bossSize * 2 / 3) {
+    if (poX + bossSize / 2 >= boss.positonX + 10 && poX + bossSize / 2 <= boss.positonX + bossSize) {
+      addScore();
+      boss.heart--;
+      help.innerHTML = "boss血量：" + boss.heart;
+      if (boss.heart === 0) {
+        clearInterval(bossMove);
+        gameOver(false);
+      }
+      gotenemy_m.play();
+      return true;
+    }
+  }
+  return false;
+}
 function addScore () {
   score++;
   if (enterCardGame === 0) {
@@ -764,11 +978,29 @@ function addScore () {
         help.innerHTML = "躲避子弹，击败敌机，获取高分";
       }, 3000);
     }
+    if (score >= 130 && !fightBoss) {
+      help.innerHTML = "警告：敌方boss来袭";
+      fightBoss = true;
+      setTimeout(() => {
+        boss = new Boss();
+        boss.fireBullet();
+        help.innerHTML = "boss血量：" + boss.heart;
+      }, 1000);
+      bossMove = setInterval(() => {
+        boss.move();
+        let oldClassify = bossBulletClassify;
+        do {
+          bossBulletClassify = Math.floor(Math.random() * 3 + 1);
+        } while (bossBulletClassify === oldClassify);
+      }, 1500);
+    }
   }
 }
-function gameOver () {
-  drawGame(planeE);
-  explode_m.play();
+function gameOver (flag = true) {
+  drawGame(flag);
+  if (flag) {
+    explode_m.play();
+  }
   bgm.src = "";
   bgm.src = "music/game_music.mp3";
   startflag = 0;
@@ -776,7 +1008,13 @@ function gameOver () {
   let name = start.nextElementSibling.value;
   name = name === "" ? "无名氏" : name;
   scoreMapAdd(name, scorestr);
-  help.innerHTML = "游戏结束，请等待一段时间重新开始";
+  if (flag) {
+    help.innerHTML = "游戏结束，请等待一段时间重新开始";
+  } else {
+    setTimeout(() => {
+      help.innerHTML = "游戏结束，恭喜通关！";
+    }, 1000);
+  }
   start.innerHTML = "游戏结束";
   delayR()
     .then(value => {
@@ -846,9 +1084,9 @@ function mapSort (map) {
     map.set(maxk, temp);
   })
 }
-function delayR () {
+function delayR (time = 1000) {
   return new Promise((resolve, reject) => {
-    setTimeout(resolve, 1000);
+    setTimeout(resolve, time);
   })
 }
 function initAllCard () {
@@ -1017,7 +1255,20 @@ window.addEventListener("keydown", (e) => {
       }
     } else if (e.key === 'p' && (score % 25 >= 20) && enterCardGame !== 3) {
       initCard();
+    } else if (e.key === "9") {
+      if (!!boss) {
+        boss.heart = 1;
+        help.innerHTML = "boss血量：" + boss.heart;
+      }
     }
+  }
+  if (startflag === 2 && start.disabled === true && e.key === "2") {
+    help.innerHTML = "游戏结束，恭喜你获胜！";
+    gameResult = true;
+    setTimeout(() => {
+      cardBoard = null;
+      continueGame();
+    }, 3000);
   }
 })
 myCanvas.addEventListener("click", (e) => {
@@ -1075,4 +1326,4 @@ myCanvas.addEventListener("click", (e) => {
     }, 300);
   }
 })
-console.log("作弊模式：按1增加分数，按0切换血量为99999或1");
+console.log("作弊模式：按1增加分数，按2跳过卡牌游戏环节，按9将boss血量设置为1，按0切换血量为99999或1");
