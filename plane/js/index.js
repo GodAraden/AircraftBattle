@@ -511,6 +511,10 @@ function drawGame (planeExplode = false) {
           break;
       }
     }
+    if (!planeExplode && boss.heart === 0) {
+      ctx.drawImage(explode, boss.positonX, boss.positonY, bossSize, bossSize / 2);
+    }
+
   }
   for (const k of bulletQueue) {
     ctx.drawImage(bullet, k.positonX + planeSize / 2 - 10, k.positonY, bulletSizeX, bulletSizeY);
@@ -640,6 +644,9 @@ function initGame () {
   help_flag = 0;
   startflag = 1;
   boss = null;
+  fightBoss = false;
+  bossMove = null;
+  bossBulletClassify = 1;
   bulletflag = 0;
   score = 0;
   heart = 16;
@@ -1253,7 +1260,7 @@ window.addEventListener("keydown", (e) => {
       } else {
         heart = 1;
       }
-    } else if (e.key === 'p' && (score % 25 >= 20) && enterCardGame !== 3) {
+    } else if (e.code === 'KeyP' && (score % 25 >= 20) && enterCardGame !== 3) {
       initCard();
     } else if (e.key === "9") {
       if (!!boss) {
