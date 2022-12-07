@@ -1,6 +1,6 @@
 # 大一年度项目（前端版
 
-预览地址：[plane.araden.top](plane.araden.top)
+预览地址：[plane.araden.top](http://plane.araden.top)
 
 #### 介绍
 这个仓库将存储本来打算用C语言搞得大一年度项目。。。
